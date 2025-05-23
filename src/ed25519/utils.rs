@@ -8,7 +8,6 @@ use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
 use serde_json::{to_value, Value};
 use pyo3::{PyAny, PyErr};
 use pyo3::exceptions::PyValueError;
-
 use super::structs::SerializableScalar;
 
 

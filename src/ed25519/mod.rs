@@ -15,7 +15,7 @@ use frost_ed25519::{
 };
 use rand::thread_rng;
 use structs::{
-    Scalar, SerializableKeyPair, SerializableR1SecretPackage, SerializableR2SecretPackage, SerializableScalar
+    SerializableKeyPair, SerializableR1SecretPackage, SerializableR2SecretPackage, SerializableScalar
 };
 use std::collections::BTreeMap;
 use hex;
