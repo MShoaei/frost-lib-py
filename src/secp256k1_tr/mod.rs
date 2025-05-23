@@ -36,8 +36,7 @@ fn num_to_id(py: Python, num: u64) -> PyResult<PyObject> {
 	let bytes: Vec<u8> = num.to_be_bytes().to_vec(); 
 	let mut padded_vec = vec![0u8; 32];
 	padded_vec[24..].copy_from_slice(&bytes);
-	let identifier: Identifier = Identifier::deserialize(&padded_vec)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyValueError, _>(e.to_string()))?;
+	let identifier: Identifier = RET_ERR!(Identifier::deserialize(&padded_vec));
     
     utils::to_pydict(py, &identifier)
 }

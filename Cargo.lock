@@ -239,7 +239,7 @@ checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
 [[package]]
 name = "frost-core"
 version = "2.1.0"
-source = "git+https://github.com/sadeghte/frost.git#f79e6ecc253df7f7d297401aebb3af2ec5f5d580"
+source = "git+https://github.com/sadeghte/frost.git#3f4f875220bb856b2492cbaf85c83a74fb43f36c"
 dependencies = [
  "byteorder",
  "const-crc32-nostd",
@@ -261,7 +261,7 @@ dependencies = [
 [[package]]
 name = "frost-ed25519"
 version = "2.1.0"
-source = "git+https://github.com/sadeghte/frost.git#f79e6ecc253df7f7d297401aebb3af2ec5f5d580"
+source = "git+https://github.com/sadeghte/frost.git#3f4f875220bb856b2492cbaf85c83a74fb43f36c"
 dependencies = [
  "curve25519-dalek",
  "document-features",
@@ -290,7 +290,7 @@ dependencies = [
 [[package]]
 name = "frost-rerandomized"
 version = "2.1.0"
-source = "git+https://github.com/sadeghte/frost.git#f79e6ecc253df7f7d297401aebb3af2ec5f5d580"
+source = "git+https://github.com/sadeghte/frost.git#3f4f875220bb856b2492cbaf85c83a74fb43f36c"
 dependencies = [
  "derive-getters",
  "document-features",
@@ -302,7 +302,7 @@ dependencies = [
 [[package]]
 name = "frost-secp256k1-tr"
 version = "2.1.0"
-source = "git+https://github.com/sadeghte/frost.git#f79e6ecc253df7f7d297401aebb3af2ec5f5d580"
+source = "git+https://github.com/sadeghte/frost.git#3f4f875220bb856b2492cbaf85c83a74fb43f36c"
 dependencies = [
  "document-features",
  "frost-core",
