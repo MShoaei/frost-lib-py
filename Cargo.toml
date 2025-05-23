@@ -11,6 +11,7 @@ crate-type = ["cdylib"]
 pyo3 = { version = "0.20", features = ["extension-module"] }
 frost-core = { git = "https://github.com/sadeghte/frost.git", features = ["serde"] }
 frost-ed25519 = { git = "https://github.com/sadeghte/frost.git", features = ["serde"] }
+frost-secp256k1 = { git = "https://github.com/sadeghte/frost.git", features = ["serde"] }
 frost-secp256k1-tr = { git = "https://github.com/sadeghte/frost.git", features = ["serde"] }
 rand = "0.8.5"
 hex = "0.4.3"

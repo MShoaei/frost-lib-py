@@ -278,6 +278,7 @@ dependencies = [
  "base64",
  "frost-core",
  "frost-ed25519",
+ "frost-secp256k1",
  "frost-secp256k1-tr",
  "hex",
  "pyo3",
@@ -297,6 +298,19 @@ dependencies = [
  "frost-core",
  "hex",
  "rand_core",
+]
+
+[[package]]
+name = "frost-secp256k1"
+version = "2.1.0"
+source = "git+https://github.com/sadeghte/frost.git#3f4f875220bb856b2492cbaf85c83a74fb43f36c"
+dependencies = [
+ "document-features",
+ "frost-core",
+ "frost-rerandomized",
+ "k256",
+ "rand_core",
+ "sha2",
 ]
 
 [[package]]
