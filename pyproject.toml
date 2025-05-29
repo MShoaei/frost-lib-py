@@ -1,0 +1,90 @@
+[project]
+name = "frost-lib"
+version = "0.1.0"
+description = "A wrapper around rust frost"
+readme = "README.md"
+authors = [{ name = "pooya", email = "pooyafekri79@gmail.com" }]
+requires-python = ">=3.12"
+dependencies = [
+    "frost-core",
+    "pydantic~=2.10.6",
+]
+
+[project.scripts]
+frost-lib-py = "frost_lib_py:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["frost-core"]
+
+[tool.uv.sources]
+frost-core = { workspace = true }
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "pep621"
+update_changelog_on_bump = true
+major_version_zero = true
+
+
+[dependency-groups]
+dev = [
+    "bitcoin-utils~=0.7.1",
+    "requests>=2.31.0",
+    "pre-commit~=4.0.1",
+    "pyright>=1.1.394",
+    "ruff>=0.9.6",
+    "commitizen>=4.4.1",
+]
+
+[tool.ruff]
+exclude = [
+    ".git",
+    "__pycache__",
+    "setup.py",
+    "build",
+    "dist",
+    "releases",
+    "tools",
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".vscode",
+    ".github",
+]
+line-length = 120
+indent-width = 4
+
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle errors
+    "F", # pyflakes errors
+    "W", # pycodestyle warnings
+    "C", # mccabe complexity checker
+    "B", # bugbear best practices checker
+    "T", # mypy type errors
+    "B", # flake8-bugbear best practices checker
+    "I", # isort
+]
+ignore = [
+    "T201"
+]
+
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"

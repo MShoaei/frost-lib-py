@@ -16,7 +16,9 @@ import utils
 from bitcoinutils.constants import TAPROOT_SIGHASH_ALL
 from bitcoinutils.keys import PublicKey
 from bitcoinutils.transactions import Transaction, TxInput, TxOutput, TxWitnessInput
+
 from frost_lib import secp256k1_tr as frost
+from frost_lib.custom_types import PrivateKeyPackage, PublicKeyPackage
 
 [_, key_file_name] = sys.argv
 
@@ -27,11 +29,12 @@ if not os.path.exists(key_file_path):
 
 with open(key_file_path, "r") as file:
     json_data = json.load(file)
+    print(json.dumps(json_data, indent=4))
     threshold = json_data["threshold"]
     n = json_data["n"]
     participants = json_data["participants"]
-    key_packages = json_data["keyPackages"]
-    pubkey_package = json_data["pubkeyPackage"]
+    key_packages = {node_id: PrivateKeyPackage.model_validate(key) for node_id, key in json_data["keyPackages"].items()}
+    pubkey_package = PublicKeyPackage.model_validate(json_data["pubkeyPackage"])
 
 
 tweak_by = b"sample merkle root"
@@ -45,10 +48,10 @@ Round 1: generating nonces and signing commitments for each participant
 for identifier in participants[:threshold]:
     key_package_tweaked = frost.key_package_tweak(key_packages[identifier], tweak_by)
     result = frost.round1_commit(
-        key_package_tweaked["signing_share"],
+        key_package_tweaked.signing_share,
     )
-    nonces_map[identifier] = result["nonces"]
-    commitments_map[identifier] = result["commitments"]
+    nonces_map[identifier] = result.nonces
+    commitments_map[identifier] = result.commitments
 
 """
 ==========================================================================
@@ -57,7 +60,7 @@ Round 2: creating transaction
 """
 
 pubkey_package_tweaked = frost.pubkey_package_tweak(pubkey_package, tweak_by)
-public_key_tweaked = PublicKey(pubkey_package_tweaked["verifying_key"])
+public_key_tweaked = PublicKey(pubkey_package_tweaked.verifying_key)
 # print("publicKey:", public_key.to_hex())
 
 taproot_address = public_key_tweaked.get_taproot_address()
@@ -80,9 +83,7 @@ tx = Transaction([txin], [txout], has_segwit=True)
 # print("tx: ", tx)
 utxos_scriptPubkeys = [taproot_address.to_script_pub_key()]
 amounts = [amount]
-tx_digest = tx.get_transaction_taproot_digest(
-    0, utxos_scriptPubkeys, amounts, 0, sighash=TAPROOT_SIGHASH_ALL
-)
+tx_digest = tx.get_transaction_taproot_digest(0, utxos_scriptPubkeys, amounts, 0, sighash=TAPROOT_SIGHASH_ALL)
 print("tx digest:", tx_digest)
 
 """
@@ -109,9 +110,7 @@ Aggregation: collects the signing shares from all participants,
 generates the final signature.
 ==========================================================================
 """
-group_signature = frost.aggregate_with_tweak(
-    signing_package, signature_shares, pubkey_package_tweaked, None
-)
+group_signature = frost.aggregate_with_tweak(signing_package, signature_shares, pubkey_package_tweaked, None)
 
 verified = frost.verify_group_signature(
     group_signature,

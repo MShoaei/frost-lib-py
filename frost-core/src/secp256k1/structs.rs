@@ -49,10 +49,10 @@ impl From<R1SecretPackage> for SerializableR1SecretPackage {
 impl From<SerializableR1SecretPackage> for R1SecretPackage {
     fn from(serializable: SerializableR1SecretPackage) -> R1SecretPackage {
         R1SecretPackage::new(
-            serializable.identifier, 
-            serializable.coefficients.into_iter().map(|s| s.0).collect(), 
-            serializable.commitment, 
-            serializable.min_signers, 
+            serializable.identifier,
+            serializable.coefficients.into_iter().map(|s| s.0).collect(),
+            serializable.commitment,
+            serializable.min_signers,
             serializable.max_signers
         )
     }
@@ -83,10 +83,10 @@ impl From<R2SecretPackage> for SerializableR2SecretPackage {
 impl From<SerializableR2SecretPackage> for R2SecretPackage {
     fn from(serializable: SerializableR2SecretPackage) -> R2SecretPackage {
         R2SecretPackage::new(
-            serializable.identifier, 
-            serializable.commitment, 
-            serializable.secret_share.0, 
-            serializable.min_signers, 
+            serializable.identifier,
+            serializable.commitment,
+            serializable.secret_share.0,
+            serializable.min_signers,
             serializable.max_signers
         )
     }

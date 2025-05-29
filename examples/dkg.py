@@ -10,14 +10,11 @@ $ python samples/sample-frost-dkg.py key-file-1 2 3
 
 import json
 import os
+import sys
 
 from frost_lib import secp256k1_tr as frost
 
-# [_, key_file_name, _threshold, _max] = sys.argv
-
-key_file_name = "key_file"
-_threshold = "2"
-_max = "3"
+[_, key_file_name, _threshold, _max] = sys.argv
 
 min_signers = int(_threshold)
 max_signers = int(_max)
@@ -41,14 +38,14 @@ for identifier in participants:
     )
     # print("result: ", result_part1);
 
-    round1_secret_packages[identifier] = result_part1["secret_package"]
+    round1_secret_packages[identifier] = result_part1.secret_package
 
     for receiver_identifier in participants:
         if receiver_identifier == identifier:
             continue
         if received_round1_packages.get(receiver_identifier) is None:
             received_round1_packages[receiver_identifier] = {}
-        received_round1_packages[receiver_identifier][identifier] = result_part1["package"]
+        received_round1_packages[receiver_identifier][identifier] = result_part1.package
 
 """
 ============================================================================
@@ -65,8 +62,8 @@ for identifier in participants:
     # print("round1_secret_package: ", json.dumps(round1_secret_package, indent=4))
     result_part2 = frost.dkg_part2(round1_secret_package, round1_packages)
     (round2_secret_package, round2_packages) = (
-        result_part2["secret_package"],
-        result_part2["packages"],
+        result_part2.secret_package,
+        result_part2.packages,
     )
     # print("result: ", json.dumps(result_part2, indent=2));
     round2_secret_packages[identifier] = round2_secret_package
@@ -97,12 +94,12 @@ for participant_identifier in participants:
     )
 
     (key_package, pubkey_package) = (
-        result_part3["key_package"],
-        result_part3["pubkey_package"],
+        result_part3.key_package,
+        result_part3.pubkey_package,
     )
 
-    key_packages[participant_identifier] = key_package
-    pubkey_packages[participant_identifier] = pubkey_package
+    key_packages[participant_identifier] = key_package.model_dump(mode="python")
+    pubkey_packages[participant_identifier] = pubkey_package.model_dump(mode="python")
 
     print("*" * 100)
     print(result_part3)
