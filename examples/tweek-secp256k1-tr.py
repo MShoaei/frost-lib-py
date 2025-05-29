@@ -1,22 +1,24 @@
 import hashlib
-from frost_lib import ed25519 as frost;
+
+from frost_lib import secp256k1_tr as frost
+
 
 def sha256(data):
     return hashlib.sha256(data).digest()
 
+
 def check_tweaked_sign_with_dealer():
     merkle_root = bytes([12] * 32)
-    
+
     max_signers = 5
     min_signers = 3
-    
+
     result = frost.keys_generate_with_dealer(max_signers, min_signers)
-    shares = result['shares']
-    pubkey_package = result['pubkey_package']
+    pubkey_package = result.pubkey_package
     # print("Result:", result)
 
-    key_packages = {};
-    for identifier, secret_share in result["shares"].items():
+    key_packages = {}
+    for identifier, secret_share in result.shares.items():
         key_packages[identifier] = frost.key_package_from(secret_share)
 
     nonces_map = {}
@@ -26,17 +28,17 @@ def check_tweaked_sign_with_dealer():
     Round 1: generating nonces and signing commitments for each participant
     ==========================================================================
     """
-    for identifier,_ in list(result["shares"].items())[:min_signers]:
+    for identifier, _ in list(result.shares.items())[:min_signers]:
         result = frost.round1_commit(
-            key_packages[identifier]['signing_share'],
-        );
-        nonces_map[identifier] = result['nonces']
-        commitments_map[identifier] = result['commitments']
-    
+            key_packages[identifier].signing_share,
+        )
+        nonces_map[identifier] = result.nonces
+        commitments_map[identifier] = result.commitments
+
     message = b"message to sign"
     print("message: ", message)
     signature_shares = {}
-    signing_package = frost.signing_package_new(commitments_map, message);
+    signing_package = frost.signing_package_new(commitments_map, message)
     """
     ==========================================================================
     Round 2: each participant generates their signature share
@@ -47,7 +49,7 @@ def check_tweaked_sign_with_dealer():
             signing_package,
             nonces_map[identifier],
             key_packages[identifier],
-            merkle_root
+            merkle_root,
         )
         signature_shares[identifier] = signature_share
     """
@@ -56,22 +58,15 @@ def check_tweaked_sign_with_dealer():
     generates the final signature.
     ==========================================================================
     """
-    group_signature = frost.aggregate_with_tweak(
-        signing_package, 
-        signature_shares, 
-        pubkey_package, 
-        merkle_root
-    )
+    group_signature = frost.aggregate_with_tweak(signing_package, signature_shares, pubkey_package, merkle_root)
     print("aggregated signature: ", group_signature)
-    
-    verified = frost.verify_group_signature(group_signature, message, pubkey_package);
+
+    verified = frost.verify_group_signature(group_signature, message, pubkey_package)
     print("normal pubkey verified: ", verified)
-    
-    pubkey_package_tweaked = frost.pubkey_package_tweak(pubkey_package, merkle_root);
-    verified = frost.verify_group_signature(group_signature, message, pubkey_package_tweaked);
+
+    pubkey_package_tweaked = frost.pubkey_package_tweak(pubkey_package, merkle_root)
+    verified = frost.verify_group_signature(group_signature, message, pubkey_package_tweaked)
     print("tweaked pubkey verified: ", verified)
-
-
 
 
 check_tweaked_sign_with_dealer()

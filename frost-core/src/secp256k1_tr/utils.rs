@@ -1,6 +1,6 @@
 use frost_core::{Ciphersuite, Identifier, Error};
 use serde::{
-	Serialize, 
+	Serialize,
 	de::DeserializeOwned
 };
 use pyo3::prelude::*;
@@ -8,7 +8,6 @@ use pyo3::types::{PyBool, PyDict, PyFloat, PyInt, PyList, PyString};
 use serde_json::{to_value, Value};
 use pyo3::{PyAny, PyErr};
 use pyo3::exceptions::PyValueError;
-use super::structs::SerializableScalar;
 
 
 pub fn from_json_value<T: DeserializeOwned>(value: Value) -> Result<T, Box<dyn std::error::Error>> {
@@ -26,7 +25,7 @@ pub fn b2id<C: Ciphersuite>(id: Vec<u8>) -> Result<Identifier<C>, Error<C>> {
 
     // Create a fixed-size array with 32 bytes, initialized to 0
     let mut fixed_size_data: [u8; 32] = [0x00; 32];
-    
+
     // Copy the contents of the bytes into the fixed-size array
     fixed_size_data[..id.len()].copy_from_slice(&id);
 
@@ -118,25 +117,4 @@ pub fn to_pydict<T: Serialize>(py: Python<'_>, obj: &T) -> PyResult<PyObject> {
 pub fn from_pydict<T: DeserializeOwned>(py_obj: &PyAny) -> Result<T, PyErr> {
     let json_val: Value = py_to_json_value(py_obj)?;
     from_json_value(json_val).map_err(|e| PyErr::new::<PyValueError, _>(e.to_string()))
-}
-
-pub fn bytes_to_scalar(bytes: &[u8]) -> Result<SerializableScalar, Box<dyn std::error::Error>> {
-    if bytes.len() > 32 {
-        return Err("Expected at most 32 bytes".into());
-    }
-
-    // Left-pad (zero pad at the start) to ensure 32-byte big-endian scalar
-    let mut padded = [0u8; 32];
-    padded[32 - bytes.len()..].copy_from_slice(bytes);
-    padded.reverse();
-
-    SerializableScalar::deserialize(&padded).map_err(|e| e.into())
-}
-
-#[allow(dead_code)]
-pub fn print_u8_pointer(ptr: &[u8]) {
-    // Read the first two bytes to determine the buffer length
-    let length = ptr.len();
-    let hex_string = hex::encode(ptr);
-    println!("[{}]:{}", length, hex_string);
 }

@@ -1,6 +1,6 @@
 use frost_core::{Ciphersuite, Identifier, Error};
 use serde::{
-	Serialize, 
+	Serialize,
 	de::DeserializeOwned
 };
 use pyo3::prelude::*;
@@ -26,7 +26,7 @@ pub fn b2id<C: Ciphersuite>(id: Vec<u8>) -> Result<Identifier<C>, Error<C>> {
 
     // Create a fixed-size array with 32 bytes, initialized to 0
     let mut fixed_size_data: [u8; 32] = [0x00; 32];
-    
+
     // Copy the contents of the bytes into the fixed-size array
     fixed_size_data[..id.len()].copy_from_slice(&id);
 

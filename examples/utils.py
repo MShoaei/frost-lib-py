@@ -1,11 +1,11 @@
-
 import requests
 
 
-def get_base_url(network='testnet'):
+def get_base_url(network="testnet"):
     return f"https://mempool.space/{network}/api"
 
-def get_utxos(address, network="testnet"):
+
+def get_utxos(address, network="testnet4"):
     url = f"{get_base_url(network)}/address/{address}/utxo"
     response = requests.get(url)
 
@@ -19,8 +19,7 @@ def get_utxos(address, network="testnet"):
         raise Exception(f"Error: {response.status_code}, {response.text}")
 
 
-def broadcast_tx(raw_tx: str, network='testnet'):
+def broadcast_tx(raw_tx: str, network="testnet"):
     url = f"{get_base_url(network)}/tx"
-    response = requests.post(url, data=raw_tx, headers={
-                             "Content-Type": "text/plain"})
+    response = requests.post(url, data=raw_tx, headers={"Content-Type": "text/plain"})
     return response.text

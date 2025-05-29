@@ -2,24 +2,21 @@ use pyo3::{
     prelude::*,
     types::PyBytes
 };
-use frost_core::Group;
-use frost_secp256k1::{
-    Secp256K1Sha256,
-	self as frost, keys:: {
-		self, dkg, KeyPackage, PublicKeyPackage, SecretShare, SigningShare, VerifiableSecretSharingCommitment, VerifyingShare
-	}, round1, round2::{self, SignatureShare}, Identifier, Signature, SigningKey, SigningPackage, VerifyingKey
-};
 use rand::thread_rng;
-use structs::{SerializableR1SecretPackage, SerializableR2SecretPackage, SerializableScalar, SerializableKeyPair};
+use frost_secp256k1_tr::{
+	self as frost, keys:: {
+		self, dkg, KeyPackage, PublicKeyPackage, SecretShare, SigningShare, Tweak, VerifiableSecretSharingCommitment, VerifyingShare
+	}, round1, round2::{self, SignatureShare}, Identifier, Secp256K1Sha256TR, Signature, SigningKey, SigningPackage, VerifyingKey
+};
 use std::collections::BTreeMap;
-use hex;
 use serde::{
-	Serialize, 
+	Serialize,
 	Deserialize,
 };
-
+use structs::{SerializableKeyPair, SerializableScalar, SerializableR1SecretPackage, SerializableR2SecretPackage};
 mod structs;
 mod utils;
+
 
 macro_rules! RET_ERR {
     ($expr:expr) => {
@@ -36,11 +33,11 @@ macro_rules! RET_ERR {
 
 #[pyfunction]
 fn num_to_id(py: Python, num: u64) -> PyResult<PyObject> {
-	let bytes: Vec<u8> = num.to_be_bytes().to_vec(); 
+	let bytes: Vec<u8> = num.to_be_bytes().to_vec();
 	let mut padded_vec = vec![0u8; 32];
 	padded_vec[24..].copy_from_slice(&bytes);
 	let identifier: Identifier = RET_ERR!(Identifier::deserialize(&padded_vec));
-    
+
     utils::to_pydict(py, &identifier)
 }
 
@@ -86,13 +83,13 @@ fn single_sign(py: Python, secret_hex: &PyAny, msg: &PyBytes) -> PyResult<PyObje
 
 #[pyfunction]
 fn single_verify(py: Python, signature: &PyAny, msg: &PyBytes, pubkey: &PyAny) -> PyResult<PyObject> {
-	let signature: frost_core::Signature<Secp256K1Sha256> = utils::from_pydict(signature)?;
+	let signature: frost_core::Signature<Secp256K1Sha256TR> = utils::from_pydict(signature)?;
 
 	let pubkey: VerifyingKey = utils::from_pydict(pubkey)?;
-    
+
     let verified = match pubkey.verify(msg.as_bytes(), &signature) {
         Ok(()) => true,
-        Err(_e) => false   
+        Err(_e) => false
     };
 
     utils::to_pydict(py, &verified)
@@ -144,7 +141,7 @@ pub struct DkgPart1Result{
 fn dkg_part1(py: Python, id_hex: String, max_signers: u16, min_signers: u16) -> PyResult<PyObject> {
 	let id_bytes: Vec<u8> = RET_ERR!(hex::decode(id_hex));
 	let identifier: Identifier = RET_ERR!(utils::b2id(id_bytes));
-	
+
 	let mut rng = thread_rng();
     let (secret_package, package) = RET_ERR!(frost::keys::dkg::part1(
         identifier,
@@ -153,8 +150,8 @@ fn dkg_part1(py: Python, id_hex: String, max_signers: u16, min_signers: u16) -> 
         &mut rng,
     ));
 
-	let result = DkgPart1Result { 
-        secret_package: secret_package.into(), 
+	let result = DkgPart1Result {
+        secret_package: secret_package.into(),
         package
     };
 
@@ -170,10 +167,10 @@ fn verify_proof_of_knowledge(py: Python, id: &PyAny, commitments: &PyAny, signat
 	let vss:VerifiableSecretSharingCommitment = utils::from_pydict(commitments)?;
 	let signature: Signature = utils::from_pydict(signature)?;
 	let result = frost_core::keys::dkg::verify_proof_of_knowledge(
-		identifier, 
-		&vss, 
+		identifier,
+		&vss,
 		&signature);
-    
+
 	utils::to_pydict(py, &result.is_ok())
 }
 
@@ -188,12 +185,12 @@ fn dkg_part2(py: Python, r1_skrt_pkg: &PyAny, r1_pkg: &PyAny) -> PyResult<PyObje
 	let round1_secret_package: SerializableR1SecretPackage = utils::from_pydict(r1_skrt_pkg)?;
 	let round1_packages: BTreeMap<Identifier, dkg::round1::Package> = utils::from_pydict(r1_pkg)?;
 	let (secret_package, packages) = RET_ERR!(frost::keys::dkg::part2(
-		round1_secret_package.into(), 
+		round1_secret_package.into(),
 		&round1_packages
 	));
 
 	let result = DkgPart2Result {
-		secret_package: secret_package.into(), 
+		secret_package: secret_package.into(),
 		packages
 	};
 
@@ -201,17 +198,17 @@ fn dkg_part2(py: Python, r1_skrt_pkg: &PyAny, r1_pkg: &PyAny) -> PyResult<PyObje
 }
 
 /// This method is called by the receiver of a secret share during the Distributed Key Generation (DKG) protocol.
-/// 
+///
 /// Each secret share received from the `dkg_part2` process must be validated using this method before proceeding to `dkg_part3`.
-/// 
+///
 /// If `dkg_part3` fails, it automatically validates the received shares and throws an error if validation fails.
 /// To identify which party acted maliciously, all received shares from each partner should be re-validated after a `dkg_part3` failure.
-/// 
+///
 /// ### Inputs:
 /// - `id`: A pointer to the unique identifier of the participant receiving the share.
 /// - `share_buff`: A buffer containing received secret share.
 /// - `commitment_buff`: A buffer contains the received commitment associated with the share.
-/// 
+///
 /// ### Output:
 /// - Returns a pointer to buffer containing boolean json str
 #[pyfunction]
@@ -244,7 +241,7 @@ fn dkg_part3(py: Python, r2_sec_pkg: &PyAny, r1_pkgs: &PyAny, r2_pkgs: &PyAny) -
     ));
 
 	let result = DkgPart3Result {
-		key_package, 
+		key_package,
 		pubkey_package
 	};
 
@@ -253,8 +250,8 @@ fn dkg_part3(py: Python, r2_sec_pkg: &PyAny, r1_pkgs: &PyAny, r2_pkgs: &PyAny) -
 
 #[pyfunction]
 fn keys_reconstruct(py: Python, secret_shares: &PyAny, min_signers: u16) -> PyResult<PyObject> {
-    let secret_shares: Vec<KeyPackage> = utils::from_pydict(secret_shares)?; 
-    
+    let secret_shares: Vec<KeyPackage> = utils::from_pydict(secret_shares)?;
+
     if secret_shares.len() != min_signers as usize {
         RET_ERR!(Err(format!(
             "Number of secret shares ({}) must equal min_signers ({})",
@@ -293,7 +290,7 @@ fn round1_commit(py: Python, secret: &PyAny) -> PyResult<PyObject> {
 
 #[pyfunction]
 fn signing_package_new(py: Python, signing_commitments: &PyAny, msg: &PyBytes) -> PyResult<PyObject> {
-	let signing_commitments: BTreeMap<Identifier, round1::SigningCommitments> = 
+	let signing_commitments: BTreeMap<Identifier, round1::SigningCommitments> =
         utils::from_pydict(signing_commitments)?;
 	let message = msg.as_bytes();
 	let signing_package = frost::SigningPackage::new(signing_commitments, &message);
@@ -310,12 +307,41 @@ fn round2_sign(py: Python, signing_package: &PyAny, signer_nonces: &PyAny, key_p
 }
 
 #[pyfunction]
+fn round2_sign_with_tweak(
+    py: Python,
+    signing_package: &PyAny,
+    signer_nonces: &PyAny,
+    key_package: &PyAny,
+    merkle_root: Option<&PyBytes>
+) -> PyResult<PyObject> {
+	let signing_package: SigningPackage = utils::from_pydict(signing_package)?;
+	let signer_nonces: round1::SigningNonces = utils::from_pydict(signer_nonces)?;
+	let key_package: keys::KeyPackage = utils::from_pydict(key_package)?;
+    let merkle_root: Option<&[u8]> = match merkle_root {
+        None => None,
+        Some(py_bytes) => {
+            Some(py_bytes.as_bytes())
+        }
+    };
+
+	let signature_share: round2::SignatureShare = RET_ERR!(
+        frost::round2::sign_with_tweak(
+            &signing_package,
+            &signer_nonces,
+            &key_package,
+            merkle_root.as_deref()
+        )
+    );
+	utils::to_pydict(py, &signature_share)
+}
+
+#[pyfunction]
 fn verify_share(
     py: Python,
 	identifier: &PyAny,
-	verifying_share: &PyAny, 
-	signature_share: &PyAny, 
-	signing_package: &PyAny, 
+	verifying_share: &PyAny,
+	signature_share: &PyAny,
+	signing_package: &PyAny,
 	verifying_key: &PyAny
 ) -> PyResult<PyObject> {
 	let identifier: Identifier = utils::from_pydict(identifier)?;
@@ -325,10 +351,10 @@ fn verify_share(
 	let verifying_key: VerifyingKey = utils::from_pydict(verifying_key)?;
 
 	let result = frost_core::verify_signature_share(
-		identifier, 
-		&verifying_share, 
-		&signature_share, 
-		&signing_package, 
+		identifier,
+		&verifying_share,
+		&signature_share,
+		&signing_package,
 		&verifying_key
 	);
 	utils::to_pydict(py, &result.is_ok())
@@ -344,62 +370,57 @@ fn aggregate(py: Python, signing_package: &PyAny, signature_shares: &PyAny, pubk
 }
 
 #[pyfunction]
-fn pubkey_tweak(py: Python, pubkey: &PyAny, tweak_by: &PyBytes) -> PyResult<PyObject> {
-	let pubkey: VerifyingKey = utils::from_pydict(pubkey)?;
+fn aggregate_with_tweak(
+    py: Python,
+    signing_package: &PyAny,
+    signature_shares: &PyAny,
+    pubkey_package: &PyAny,
+    merkle_root: Option<&PyBytes>
+) -> PyResult<PyObject> {
+	let signing_package: frost::SigningPackage = utils::from_pydict(signing_package)?;
+	let signature_shares: BTreeMap<Identifier, round2::SignatureShare> = utils::from_pydict(signature_shares)?;
+	let pubkey_package: keys::PublicKeyPackage = utils::from_pydict(pubkey_package)?;
+    let merkle_root: Option<&[u8]> = match merkle_root {
+        None => None,
+        Some(py_bytes) => {
+            Some(py_bytes.as_bytes())
+        }
+    };
 
-    // let t: SerializableScalar = utils::from_pydict(tweak_by)?;
-    let t: SerializableScalar = RET_ERR!(utils::bytes_to_scalar(tweak_by.as_bytes()));
-    
-    let t_pub = frost::Secp256K1Group::generator() * t.0;
-
-    let pubkey_tweaked =
-        VerifyingKey::new(pubkey.to_element() + t_pub);
-
-    utils::to_pydict(py, &pubkey_tweaked)
+	let group_signature: frost::Signature = RET_ERR!(frost::aggregate_with_tweak(
+        &signing_package,
+        &signature_shares,
+        &pubkey_package,
+        merkle_root.as_deref()
+    ));
+	utils::to_pydict(py, &group_signature)
 }
 
 #[pyfunction]
-fn pubkey_package_tweak(py: Python, pubkey_package: &PyAny, tweak_by: &PyBytes) -> PyResult<PyObject> {
+fn pubkey_package_tweak(py: Python, pubkey_package: &PyAny, merkle_root: Option<&PyBytes>) -> PyResult<PyObject> {
 	let pubkey_package: keys::PublicKeyPackage = utils::from_pydict(pubkey_package)?;
-    let t: SerializableScalar = RET_ERR!(utils::bytes_to_scalar(tweak_by.as_bytes()));
+    let merkle_root: Option<&[u8]> = match merkle_root {
+        None => None,
+        Some(py_bytes) => {
+            Some(py_bytes.as_bytes())
+        }
+    };
 
-    let t_pub = frost::Secp256K1Group::generator() * t.0;
-
-    let verifying_key =
-        VerifyingKey::new(pubkey_package.verifying_key().to_element() + t_pub);
-    let verifying_shares: BTreeMap<_, _> = pubkey_package
-        .verifying_shares()
-        .iter()
-        .map(|(i, vs)| {
-            let vs = VerifyingShare::new(vs.to_element() + t_pub);
-            (*i, vs)
-        })
-        .collect();
-
-	let pubkey_package_tweaked = PublicKeyPackage::new(verifying_shares, verifying_key);
+	let pubkey_package_tweaked = pubkey_package.clone().tweak(merkle_root.as_deref());
 	utils::to_pydict(py, &pubkey_package_tweaked)
 }
 
 #[pyfunction]
-fn key_package_tweak(py: Python, key_package: &PyAny, tweak_by: &PyBytes) -> PyResult<PyObject> {
+fn key_package_tweak(py: Python, key_package: &PyAny, merkle_root: Option<&PyBytes>) -> PyResult<PyObject> {
 	let key_package: keys::KeyPackage = utils::from_pydict(key_package)?;
-    let t: SerializableScalar = RET_ERR!(utils::bytes_to_scalar(tweak_by.as_bytes()));
+    let merkle_root: Option<&[u8]> = match merkle_root {
+        None => None,
+        Some(py_bytes) => {
+            Some(py_bytes.as_bytes())
+        }
+    };
 
-    let t_pub = frost::Secp256K1Group::generator() * t.0;
-
-    let verifying_key = VerifyingKey::new(key_package.verifying_key().to_element() + t_pub);
-    let signing_share = SigningShare::new(key_package.signing_share().to_scalar() + t.0);
-    let verifying_share =
-        VerifyingShare::new(key_package.verifying_share().to_element() + t_pub); 
-
-    let key_package_tweaked = KeyPackage::new(
-        *key_package.identifier(), 
-        signing_share, 
-        verifying_share, 
-        verifying_key, 
-        *key_package.min_signers()
-    );
-
+	let key_package_tweaked = key_package.clone().tweak(merkle_root.as_deref());
 	utils::to_pydict(py, &key_package_tweaked)
 }
 
@@ -432,9 +453,10 @@ pub fn register(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(round1_commit, m)?)?;
     m.add_function(wrap_pyfunction!(signing_package_new, m)?)?;
     m.add_function(wrap_pyfunction!(round2_sign, m)?)?;
+    m.add_function(wrap_pyfunction!(round2_sign_with_tweak, m)?)?;
     m.add_function(wrap_pyfunction!(verify_share, m)?)?;
     m.add_function(wrap_pyfunction!(aggregate, m)?)?;
-    m.add_function(wrap_pyfunction!(pubkey_tweak, m)?)?;
+    m.add_function(wrap_pyfunction!(aggregate_with_tweak, m)?)?;
     m.add_function(wrap_pyfunction!(pubkey_package_tweak, m)?)?;
     m.add_function(wrap_pyfunction!(key_package_tweak, m)?)?;
     m.add_function(wrap_pyfunction!(verify_group_signature, m)?)?;
