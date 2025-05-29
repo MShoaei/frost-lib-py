@@ -9,15 +9,27 @@ class Ed25519(BaseCurveWithTweakedPubkey):
     def _get_curve(self):
         return ed25519_r
 
+    @property
+    def name(self):
+        return "ed25519"
+
 
 class Secp256k1(BaseCurveWithTweakedPubkey):
     def _get_curve(self):
         return secp256k1_r
 
+    @property
+    def name(self):
+        return "secp256k1"
+
 
 class Secp256k1Tr(BaseCurveWithTweakedSign):
     def _get_curve(self):
         return secp256k1_tr_r
+
+    @property
+    def name(self):
+        return "secp256k1_tr"
 
 
 ed25519 = Ed25519()

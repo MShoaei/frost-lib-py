@@ -39,6 +39,11 @@ class BaseCryptoCurve(ABC):
     def __init__(self):
         self._curve = self._get_curve()
 
+    @property
+    @abstractmethod
+    def name(self):
+        raise NotImplementedError()
+
     @abstractmethod
     def _get_curve(self):
         raise NotImplementedError()
