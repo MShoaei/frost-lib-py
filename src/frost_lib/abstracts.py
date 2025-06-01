@@ -163,6 +163,24 @@ class BaseCurveWithTweakedPubkey(BaseCryptoCurve, ABC):
         return self._curve.pubkey_tweak(verifying_key, merkle_root)
 
 
+class BaseCurveWithNonceAddress(BaseCurveWithTweakedPubkey, ABC):
+    def hash_message(
+        self,
+        msg: bytes,
+    ) -> HexStr:
+        return self._curve.hash_message(msg)
+
+    def get_nonce_address(
+        self,
+        signing_package: SigningPackage,
+        pubkey_package: PublicKeyPackage,
+    ) -> HexStr:
+        return self._curve.get_nonce_address(
+            model_to_dict(signing_package),
+            model_to_dict(pubkey_package),
+        )
+
+
 class BaseCurveWithTweakedSign(BaseCryptoCurve, ABC):
     def round2_sign_with_tweak(
         self,

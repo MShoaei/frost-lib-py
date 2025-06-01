@@ -21,12 +21,17 @@ frost-secp256k1 = { git = "https://github.com/sadeghte/frost.git", features = [
 frost-secp256k1-tr = { git = "https://github.com/sadeghte/frost.git", features = [
     "serde",
 ] }
+frost-evm = { git = "https://github.com/Analog-Labs/frost-evm.git", features = [
+    "serde"
+]}
+
 rand = "0.8.5"
 hex = "0.4.3"
 base64 = "0.22.0"
 serde = "1.0.214"
 serdect = "0.2.0"
 serde_json = "1.0.115"
+sha3 = { version = "0.10.8", default-features = false }
 
 [package.metadata.maturin]
 name = "frost_core"
