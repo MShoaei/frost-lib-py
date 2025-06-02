@@ -132,6 +132,23 @@ class BaseCryptoCurve(ABC):
             model_to_dict(pubkey_package),
         )
 
+    def verify_share(
+        self,
+        identifier: HexStr,
+        verifying_share: HexStr,
+        signature_share: SharePackage,
+        signing_package: SigningPackage,
+        verifying_key: HexStr,
+    ) -> HexStr:
+        res = self._curve.verify_share(
+            identifier,
+            verifying_share,
+            model_to_dict(signature_share),
+            model_to_dict(signing_package),
+            verifying_key,
+        )
+        return res
+
     def keys_generate_with_dealer(self, max_signers: int, min_signers: int) -> PubkeyWithShare:
         return PubkeyWithShare.model_validate(self._curve.keys_generate_with_dealer(max_signers, min_signers))
 
