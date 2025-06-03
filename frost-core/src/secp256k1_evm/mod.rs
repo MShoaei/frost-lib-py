@@ -4,17 +4,17 @@ use pyo3::{
 };
 use std::collections::HashMap;
 use frost_evm::{
-    self, frost_core::{
+    self,
+    frost_core::{
+        self,
+        Challenge,
+        compute_group_commitment,
         compute_binding_factor_list,
-        compute_group_commitment
     },
-    k256::elliptic_curve::{
-        sec1::ToEncodedPoint,
-    },
-    keys, round1, round2, Identifier, SigningPackage, VerifyingKey
+    frost_secp256k1::Secp256K1Sha256,
+    keys, round1, round2, Identifier, SigningPackage, Error
 };
 use hex;
-use sha3::Digest;
 
 use crate::secp256k1::{
     num_to_id,
@@ -34,7 +34,7 @@ use crate::secp256k1::{
     round1_commit,
     signing_package_new,
     // round2_sign,
-    verify_share,
+    // verify_share,
     // aggregate,
     pubkey_tweak,
     pubkey_package_tweak,
@@ -58,47 +58,75 @@ pub fn round2_sign(py: Python, signing_package: &PyAny, signer_nonces: &PyAny, k
 	utils::to_pydict(py, &signature_share)
 }
 
-#[pyfunction]
-pub fn hash_message(py: Python, message: &PyBytes) -> PyResult<PyObject> {
-    // let bytes = message.as_bytes();
-    let hash = VerifyingKey::message_hash(message.as_bytes());
+fn make_challange(
+    signing_package: SigningPackage,
+    verifying_key: frost_core::VerifyingKey<Secp256K1Sha256>
+) -> Result<Challenge<Secp256K1Sha256>, Error>{
+    let group_public = frost_evm::VerifyingKey::new(verifying_key.to_element());
 
-    let hex_str = hash
-        .iter()
-        .map(|b| format!("{:02x}", b)) // Format each byte as two hex digits
-        .collect::<Vec<String>>()
-        .join("");
-	utils::to_pydict(py, &hex_str)
+    // Encodes the signing commitment list produced in round one as part of generating [`BindingFactor`], the
+    // binding factor.
+    let binding_factor_list =
+        compute_binding_factor_list(&signing_package, &verifying_key, &[]);
+
+    // Compute the group commitment from signing commitments produced in round one.
+    let group_commitment = compute_group_commitment(&signing_package, &binding_factor_list)?;
+
+    let challenge = Challenge::from_scalar(group_public.challenge(
+        frost_evm::VerifyingKey::message_hash(signing_package.message().as_slice()),
+        group_commitment.to_element(),
+    ));
+
+    Ok(challenge)
 }
 
 #[pyfunction]
-pub fn get_nonce_address(py: Python, signing_package: &PyAny, pubkey_package: &PyAny) -> PyResult<PyObject> {
+pub fn verify_share(
+    py: Python,
+	identifier: &PyAny,
+	verifying_share: &PyAny,
+	signature_share: &PyAny,
+	signing_package: &PyAny,
+	verifying_key: &PyAny
+) -> PyResult<PyObject> {
+	let identifier: Identifier = utils::from_pydict(identifier)?;
+	let verifying_share: frost_core::keys::VerifyingShare<Secp256K1Sha256> =
+        utils::from_pydict(verifying_share)?;
+	let signature_share: round2::SignatureShare = utils::from_pydict(signature_share)?;
 	let signing_package: SigningPackage = utils::from_pydict(signing_package)?;
-	let pubkey_package: keys::PublicKeyPackage = utils::from_pydict(pubkey_package)?;
+	let verifying_key: frost_core::VerifyingKey<Secp256K1Sha256> =
+        utils::from_pydict(verifying_key)?;
 
-    // if signing_package.signing_commitments().len() < *key_package.min_signers() as usize {
-    //     return Err(Error::IncorrectNumberOfCommitments);
-    // }
-
+    // Encodes the signing commitment list produced in round one as part of generating [`BindingFactor`], the
+    // binding factor.
     let binding_factor_list =
-            compute_binding_factor_list(&signing_package, pubkey_package.verifying_key(), &[]);
+        frost_core::compute_binding_factor_list(&signing_package, &verifying_key, &[]);
 
-    // Compute the group commitment from signing commitments produced in round one.
-    let group_commitment = RET_ERR!(compute_group_commitment(&signing_package, &binding_factor_list));
+    // Compute Lagrange coefficient.
+    let lambda_i = RET_ERR!(frost_core::derive_interpolating_value(&identifier, &signing_package));
 
-    let uncompressed = group_commitment.to_element().to_affine().to_encoded_point(false);
-    let digest = sha3::Keccak256::digest(&uncompressed.as_bytes()[1..]);
-    let address_r: [u8; 20] = digest[12..].try_into().unwrap();
-    let hex_str = format!(
-        "0x{}",
-        address_r
-            .iter()
-            .map(|b| format!("{:02x}", b)) // Format each byte as two hex digits
-            .collect::<Vec<String>>()
-            .join("")
-    );
+    let binding_factor = RET_ERR!(
+        binding_factor_list.get(&identifier).ok_or(Error::UnknownIdentifier)
+    ).clone();
 
-	utils::to_pydict(py, &hex_str)
+    // Compute the commitment share.
+    let r_share = RET_ERR!(
+        signing_package.signing_commitment(&identifier).ok_or(Error::UnknownIdentifier)
+    )
+        .to_group_commitment_share(&binding_factor);
+
+    let challenge = RET_ERR!(make_challange(signing_package, verifying_key));
+
+    // Compute relation values to verify this signature share.
+    let result = signature_share.verify(
+        identifier,
+        &r_share,
+        &verifying_share,
+        lambda_i,
+        &challenge,
+    ).is_ok();
+
+	utils::to_pydict(py, &result)
 }
 
 #[pyfunction]
@@ -148,8 +176,6 @@ pub fn register(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(round1_commit, m)?)?;
     m.add_function(wrap_pyfunction!(signing_package_new, m)?)?;
     m.add_function(wrap_pyfunction!(round2_sign, m)?)?;
-    m.add_function(wrap_pyfunction!(hash_message, m)?)?;
-    m.add_function(wrap_pyfunction!(get_nonce_address, m)?)?;
     m.add_function(wrap_pyfunction!(verify_share, m)?)?;
     m.add_function(wrap_pyfunction!(aggregate, m)?)?;
     m.add_function(wrap_pyfunction!(pubkey_tweak, m)?)?;
