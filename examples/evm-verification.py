@@ -50,8 +50,7 @@ generates the final signature.
 ==========================================================================
 """
 group_signature = frost.aggregate(signing_package, signature_shares, pubkey_package)
-print("challenge: ", "0x" + group_signature[:64])
-print("signature: ", "0x" + group_signature[64:])
+print("signature: ", group_signature)
 
 verified1 = frost.verify_group_signature(group_signature, message, pubkey_package)
 print("verified: ", verified1)

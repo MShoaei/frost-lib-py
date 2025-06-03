@@ -85,24 +85,26 @@ contract SchnorrSECP256K1Verifier {
       pubKeyX, even though it represents a value in the base field, and
       has no natural relationship to the order of the curve's cyclic group.
       **************************************************************************
-      @param pubKeyX is the x ordinate of the public key. This must be
-             less than HALF_Q.
-      @param pubKeyYParity is 0 if the y ordinate of the public key is even, 1
-             if it's odd.
-      @param e is the signature challange
-      @param s is the actual signature, described as s in the above
-             instructions.
+      @param publicKey is signer public key. This publicKey's x must be less than HALF_Q.
+      @param signature fist 32 bytes is challange and the secound 32 bytes is signature
       @param msgHash is a 256-bit hash of the message being signed.
       **************************************************************************
       @return True if passed a valid signature, false otherwise. */
   function verifySignature(
-    uint256 pubKeyX,
-    uint8 pubKeyYParity,
-    uint256 e,
-    uint256 s,
+    bytes calldata publicKey,
+    bytes calldata signature,
     uint256 msgHash
   ) public pure returns (bool) {
+    require(publicKey.length == 33, "Public key must be 33 bytes");
+    require(signature.length == 64, "Signature must be 64 bytes");
+
+    uint8 pubKeyYParity = uint8(publicKey[0]) - 2 + 27;
+    require(pubKeyYParity == 27 || pubKeyYParity == 28, "Invalid parity bit");
+    uint256 pubKeyX = uint256(bytes32(publicKey[1:33]));
     require(pubKeyX < HALF_Q, "Public-key x >= HALF_Q");
+
+    uint256 e = uint256(bytes32(signature[0:32]));
+    uint256 s = uint256(bytes32(signature[32:64]));
     // Avoid signature malleability from multiple representations for ℤ/Qℤ elts
     require(s < Q, "signature must be reduced modulo Q");
 
@@ -129,7 +131,7 @@ contract SchnorrSECP256K1Verifier {
       // https://ethereum.github.io/yellowpaper/paper.pdf p. 24, "The
       // value 27 represents an even y value and 28 represents an odd
       // y value."
-      (pubKeyYParity == 0) ? 27 : 28,
+      pubKeyYParity,
       bytes32(pubKeyX),
       bytes32(Q - mulmod(e, pubKeyX, Q))
     );
@@ -138,7 +140,7 @@ contract SchnorrSECP256K1Verifier {
 
     return bytes32(e) == keccak256(abi.encodePacked(
       recoveredAddress,
-      (pubKeyYParity == 0) ? 27 : 28,
+      pubKeyYParity,
       pubKeyX,
       msgHash
     ));
