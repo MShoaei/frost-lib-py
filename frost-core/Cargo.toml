@@ -8,7 +8,7 @@ name = "frost_core"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.20", features = ["extension-module"] }
+pyo3 = { version = "0.25", features = ["extension-module"] }
 frost-core = { git = "https://github.com/sadeghte/frost.git", features = [
     "serde",
 ] }
@@ -22,8 +22,8 @@ frost-secp256k1-tr = { git = "https://github.com/sadeghte/frost.git", features =
     "serde",
 ] }
 frost-evm = { git = "https://github.com/Analog-Labs/frost-evm.git", features = [
-    "serde"
-]}
+    "serde",
+] }
 
 rand = "0.8.5"
 hex = "0.4.3"
